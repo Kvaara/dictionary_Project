@@ -2,6 +2,7 @@
 import json
 import difflib
 from db import collection
+from db import client
 
 from difflib import SequenceMatcher
 from difflib import get_close_matches
@@ -21,6 +22,7 @@ def value(key):
         wordFound = collection.find_one(userQuery)
         if (len(wordFound[keyLower][0]) == 1):
             print(f"The word '{keyLower}' has the following meaning:")
+            client.close()
             return print("1. " + wordFound[keyLower])
         else:
             print(
@@ -29,6 +31,7 @@ def value(key):
             while (i < len(wordFound[keyLower])):
                 print(f"{i+1}. {wordFound[keyLower][i]}")
                 i += 1
+            client.close()
             return
     # If word was not found through the lowercase user query then search the same query but with the word capitalized (for cities and countries)
     elif (collection.find_one(capitalizeQuery)):
@@ -36,6 +39,7 @@ def value(key):
         if (len(wordFound[keyLower.capitalize()][0]) == 1):
             print(
                 f"The word '{keyLower.capitalize()}' has the following meaning:")
+            client.close()
             return print("1. " + wordFound[keyLower.capitalize()])
         else:
             print(
@@ -44,6 +48,7 @@ def value(key):
             while (i < len(wordFound[keyLower.capitalize()])):
                 print(f"{i+1}. {wordFound[keyLower.capitalize()][i]}")
                 i += 1
+            client.close()
             return
     # If the capitalized word wasn't found in the dictionary, then search the same query but with the word in upper-case.
     elif (wordUpper):
@@ -52,6 +57,7 @@ def value(key):
         if (len(wordFound[keyLower.upper()][0]) == 1):
             print(
                 f"The word '{keyLower.upper()}' has the following meaning:")
+            client.close()
             return print("1. " + wordFound[keyLower.upper()])
         else:
             print(
@@ -60,6 +66,7 @@ def value(key):
             while (i < len(wordFound[keyLower.capitalize()])):
                 print(f"{i+1}. {wordFound[keyLower.capitalize()][i]}")
                 i += 1
+            client.close()
             return
     # Last resort. If even the upper-case word wasn't found in the dictionary, then use similarity ratio to try and find the closest match.
     else:
@@ -85,6 +92,7 @@ def value(key):
             if (len(wordFound[closeMatches[0]][0]) == 1):
                 print(
                     f"The closest match to '{key}', which we found is '{closeMatches[0]}' and that has the following meaning: \n")
+                client.close()
                 return print("1. " + wordFound[closeMatches[0]])
             # else the word has to have multiple meanings and we'll print them accordingly:
             else:
@@ -94,9 +102,11 @@ def value(key):
                 while (i < len(wordFound[closeMatches[0]])):
                     print(f"{i+1}. {wordFound[closeMatches[0]][i]}")
                     i += 1
+                client.close()
                 return
         # If there wasn't even a closest match, return nothing but a print:
         else:
+            client.close()
             return print("There is no such word.")
 
 
