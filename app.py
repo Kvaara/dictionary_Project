@@ -1,82 +1,106 @@
 # import os
 import json
 import difflib
+from db import collection
 
 from difflib import SequenceMatcher
 from difflib import get_close_matches
 
-data = json.load(open("./Interactive English Dictionary/dictionaryData.json"))
-
 
 def value(key):
     keyLower = key.lower()
+    userQuery = {f"{keyLower}": {"$regex": ""}}
 
-    closeMatches = get_close_matches(keyLower, data, n=1)
+    capitalizeQuery = {f"{keyLower.capitalize()}": {"$regex": ""}}
+    upperQuery = {f"{keyLower.upper()}": {"$regex": ""}}
 
-    # This checks first the dictionary with the word capitalized (To account for cities or countries)
-    if (keyLower in data):
-        if (len(data[keyLower]) == 1):
+    wordUpper = collection.find_one({f"{keyLower.upper()}": {"$regex": ""}})
+
+    # This checks first the dictionary database with the user query that is in lowercase
+    if (collection.find_one(userQuery)):
+        wordFound = collection.find_one(userQuery)
+        if (len(wordFound[keyLower][0]) == 1):
             print(f"The word '{keyLower}' has the following meaning:")
-            return print("1. " + data[keyLower][0])
+            return print("1. " + wordFound[keyLower])
         else:
             print(
-                f"The word '{keyLower}' has '{len(data[keyLower])}' meanings, which are as follows: \n")
+                f"The word '{keyLower}' has '{len(wordFound[keyLower])}' meanings, which are as follows: \n")
             i = 0
-            while (i < len(data[keyLower])):
-                print(f"{i+1}. {data[keyLower][i]}")
+            while (i < len(wordFound[keyLower])):
+                print(f"{i+1}. {wordFound[keyLower][i]}")
                 i += 1
             return
-    elif (keyLower.capitalize() in data):
-        if (len(data[keyLower.capitalize()]) == 1):
+    # If word was not found through the lowercase user query then search the same query but with the word capitalized (for cities and countries)
+    elif (collection.find_one(capitalizeQuery)):
+        wordFound = collection.find_one(capitalizeQuery)
+        if (len(wordFound[keyLower.capitalize()][0]) == 1):
             print(
                 f"The word '{keyLower.capitalize()}' has the following meaning:")
-            return print("1. " + data[keyLower.capitalize()][0])
+            return print("1. " + wordFound[keyLower.capitalize()])
         else:
             print(
-                f"The word '{keyLower}' has '{len(data[keyLower])}' meanings, which are as follows: \n")
+                f"The word '{keyLower.capitalize()}' has '{len(wordFound[keyLower])}' meanings, which are as follows: \n")
             i = 0
-            while (i < len(data[keyLower])):
-                print(f"{i+1}. {data[keyLower][i]}")
+            while (i < len(wordFound[keyLower.capitalize()])):
+                print(f"{i+1}. {wordFound[keyLower.capitalize()][i]}")
                 i += 1
             return
-    elif (keyLower.upper() in data):
-        if (len(data[keyLower.upper()]) == 1):
+    # If the capitalized word wasn't found in the dictionary, then search the same query but with the word in upper-case.
+    elif (wordUpper):
+        wordFound = collection.find_one(upperQuery)
+
+        if (len(wordFound[keyLower.upper()][0]) == 1):
             print(
                 f"The word '{keyLower.upper()}' has the following meaning:")
-            return print("1. " + data[keyLower.upper()][0])
+            return print("1. " + wordFound[keyLower.upper()])
         else:
             print(
-                f"The word '{keyLower}' has '{len(data[keyLower])}' meanings, which are as follows: \n")
+                f"The word '{keyLower.upper()}' has '{len(wordFound[keyLower])}' meanings, which are as follows: \n")
             i = 0
-            while (i < len(data[keyLower])):
-                print(f"{i+1}. {data[keyLower][i]}")
+            while (i < len(wordFound[keyLower.capitalize()])):
+                print(f"{i+1}. {wordFound[keyLower.capitalize()][i]}")
                 i += 1
             return
-    elif (len(closeMatches)):
-        if (len(data[closeMatches[0]]) == 1):
-            print(
-                f"The closest match to '{keyLower}', which we found is '{closeMatches[0]}' and that has the following meaning: \n")
-            return print("1. " + data[closeMatches[0]][0])
-        else:
-            print(
-                f"The closest match to '{keyLower}', which we found is '{closeMatches[0]}' and that has '{len(data[closeMatches[0]])}' meanings: \n")
-            i = 0
-            while (i < len(data[closeMatches[0]])):
-                print(f"{i+1}. {data[closeMatches[0]][i]}")
-                i += 1
-            return
+    # Last resort. If even the upper-case word wasn't found in the dictionary, then use similarity ratio to try and find the closest match.
     else:
-        return print("There is no such word.")
+        closeMatches = []
+
+        # ---> This goes through the database and adds all the closest words (high similarity-ratio) to closeMatches -array
+        for word in collection.find():
+            closeMatch = get_close_matches(
+                keyLower, word, n=1, cutoff=0.801)
+            if (len(closeMatch) != 0):
+                closeMatches.append(closeMatch[0])
+        # <---
+
+        # Afterwards when the for in loop is done, we'll check that the closeMatches array isn't empty
+        if (closeMatches):
+            # Then we'll make a query variable for the top (first) closest match in the array
+            closeMatchesQuery = {f"{closeMatches[0]}": {"$regex": ""}}
+            # This will be the word that the query found. If the word has one meaning, the key value is a string.
+            # If the word has more than one meaning then the key value is an array of strings
+            wordFound = collection.find_one(closeMatchesQuery)
+
+            # Checks if the word has one meaning
+            if (len(wordFound[closeMatches[0]][0]) == 1):
+                print(
+                    f"The closest match to '{key}', which we found is '{closeMatches[0]}' and that has the following meaning: \n")
+                return print("1. " + wordFound[closeMatches[0]])
+            # else the word has to have multiple meanings and we'll print them accordingly:
+            else:
+                print(
+                    f"The closest match to '{key}', which we found is '{closeMatches[0]}' and that has '{len(wordFound[closeMatches[0]])}' meanings: \n")
+                i = 0
+                while (i < len(wordFound[closeMatches[0]])):
+                    print(f"{i+1}. {wordFound[closeMatches[0]][i]}")
+                    i += 1
+                return
+        # If there wasn't even a closest match, return nothing but a print:
+        else:
+            return print("There is no such word.")
 
 
 word = input("Enter a word: ")
 
 
 value(word)
-
-
-# print(get_close_matches("rainn", data))
-
-# cwd = os.getcwd()  # Get the current working directory (cwd)
-# files = os.listdir(cwd)  # Get all the files in that directory
-# print("Files in %r: %s" % (cwd, files))
