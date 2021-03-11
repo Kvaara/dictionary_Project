@@ -13,7 +13,21 @@ def value(key):
 
     closeMatches = get_close_matches(keyLower, data, n=1)
 
-    if (keyLower in data):
+    # This checks first the dictionary with the word capitalized (To account for cities or countries)
+    if (keyLower.capitalize() in data):
+        if (len(data[keyLower.capitalize()]) == 1):
+            print(
+                f"The word '{keyLower.capitalize()}' has the following meaning:")
+            return print("1. " + data[keyLower.capitalize()][0])
+        else:
+            print(
+                f"The word '{keyLower}' has '{len(data[keyLower])}' meanings, which are as follows: \n")
+            i = 0
+            while (i < len(data[keyLower])):
+                print(f"{i+1}. {data[keyLower][i]}")
+                i += 1
+            return
+    elif (keyLower in data):
         if (len(data[keyLower]) == 1):
             print(f"The word '{keyLower}' has the following meaning:")
             return print("1. " + data[keyLower][0])
